@@ -22,6 +22,7 @@ import org.awaitility.core.FailFastCondition.CallableFailFastCondition.FailFastA
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.Optional;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -78,6 +79,7 @@ abstract class ConditionAwaiter implements UncaughtExceptionHandler {
         long pollingStartedNanos = System.nanoTime() - pollDelay.toNanos();
 
         int pollCount = 0;
+        boolean anyResultSuccessful = false;
         boolean succeededBeforeTimeout = false;
         ConditionEvaluationResult lastResult = null;
         Duration evaluationDuration = Duration.of(0, MILLIS);
@@ -103,6 +105,7 @@ abstract class ConditionAwaiter implements UncaughtExceptionHandler {
                 lastResult = ChronoUnit.FOREVER.getDuration().equals(maxWaitTime) ? getUninterruptibly(currentConditionEvaluation) : getUninterruptibly(currentConditionEvaluation, maxWaitTimeForThisCondition);
                 if (lastResult.isSuccessful() && firstSucceedSinceStarted == 0L) {
                     firstSucceedSinceStarted = System.nanoTime();
+                    anyResultSuccessful = true;
                 } else if (lastResult.isError()) {
                     firstSucceedSinceStarted = 0L;
                 }
@@ -164,12 +167,14 @@ abstract class ConditionAwaiter implements UncaughtExceptionHandler {
                     }
                 }
                 conditionEvaluationHandler.handleTimeout(message, false);
-                throw new ConditionTimeoutException(message, cause);
+
+                TimeoutReason timeoutReason = anyResultSuccessful ? TimeoutReason.CONDITION_NOT_HELD : TimeoutReason.CONDITION_NOT_MET;
+                throwTimeoutExceptionOrCallTimeoutCallbackIfDefined(message, cause, evaluationDuration, timeoutReason);
             } else if (evaluationDuration.compareTo(minWaitTime) < 0) {
                 String message = String.format("Condition was evaluated in %s which is earlier than expected minimum timeout %s",
                         formatAsString(evaluationDuration), formatAsString(minWaitTime));
                 conditionEvaluationHandler.handleTimeout(message, true);
-                throw new ConditionTimeoutException(message);
+                throwTimeoutExceptionOrCallTimeoutCallbackIfDefined(message, null, evaluationDuration, TimeoutReason.CONDITION_MET_TOO_EARLY);
             }
         } catch (Throwable e) {
             CheckedExceptionRethrower.safeRethrow(e);
@@ -202,6 +207,22 @@ abstract class ConditionAwaiter implements UncaughtExceptionHandler {
                 throw new TerminalFailureException(failFastFailureReason == null ? e.getMessage() : failFastFailureReason, e);
             }
         }
+    }
+
+    private void throwTimeoutExceptionOrCallTimeoutCallbackIfDefined(
+            String message, Throwable cause, Duration evaluationDuration, TimeoutReason timeoutReason) {
+        Optional<OnTimeoutCallback> onTimeoutCallback = conditionSettings.getOnTimeoutCallback();
+        if(!onTimeoutCallback.isPresent()) {
+            throw new ConditionTimeoutException(message, cause);
+        }
+
+        TimeoutInfo timeoutInfo = new TimeoutInfo(
+                conditionSettings.getAlias(),
+                message,
+                evaluationDuration,
+                timeoutReason
+        );
+        onTimeoutCallback.get().onTimeout(timeoutInfo);
     }
 
     private static String decapitalize(String str) {

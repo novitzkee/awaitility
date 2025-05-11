@@ -19,6 +19,7 @@ import org.awaitility.constraint.WaitConstraint;
 import org.awaitility.pollinterval.PollInterval;
 
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 
 public class ConditionSettings {
@@ -26,6 +27,7 @@ public class ConditionSettings {
     private final WaitConstraint waitConstraint;
     private final PollInterval pollInterval;
     private final Duration pollDelay;
+    private final OnTimeoutCallback onTimeoutCallback;
     private final boolean catchUncaughtExceptions;
     private final ExceptionIgnorer ignoreExceptions;
     private final ConditionEvaluationListener conditionEvaluationListener;
@@ -37,15 +39,16 @@ public class ConditionSettings {
      * @param alias                       a {@link String} object.
      * @param catchUncaughtExceptions     a boolean.
      * @param waitConstraint              a {@link WaitConstraint} object.
-     * @param pollInterval                a {@link org.awaitility.Duration} object.
-     * @param pollDelay                   a {@link org.awaitility.Duration} object.
+     * @param pollInterval                a {@link java.time.Duration} object.
+     * @param pollDelay                   a {@link java.time.Duration} object.
+     * @param onTimeoutCallback           a {@link java.util.function.Consumer} to call when timeout occurs.
      * @param conditionEvaluationListener a {@link ConditionEvaluationListener} object.
      * @param ignoreExceptions            a {@link ExceptionIgnorer} object.
      * @param executorLifecycle           Responsible for performing executor service cleanup after each condition evaluation round
      * @param failFastCondition           a Callable that if returns true, fails the test immediately
      */
     ConditionSettings(String alias, boolean catchUncaughtExceptions, WaitConstraint waitConstraint,
-                      PollInterval pollInterval, Duration pollDelay, ConditionEvaluationListener conditionEvaluationListener,
+                      PollInterval pollInterval, Duration pollDelay, OnTimeoutCallback onTimeoutCallback, ConditionEvaluationListener conditionEvaluationListener,
                       ExceptionIgnorer ignoreExceptions, ExecutorLifecycle executorLifecycle, final FailFastCondition failFastCondition) {
         if (waitConstraint == null) {
             throw new IllegalArgumentException("You must specify a maximum waiting time (was null).");
@@ -58,6 +61,7 @@ public class ConditionSettings {
         this.waitConstraint = waitConstraint;
         this.pollInterval = pollInterval;
         this.pollDelay = pollDelay;
+        this.onTimeoutCallback = onTimeoutCallback;
         this.catchUncaughtExceptions = catchUncaughtExceptions;
         this.conditionEvaluationListener = conditionEvaluationListener;
         this.ignoreExceptions = ignoreExceptions;
@@ -76,7 +80,7 @@ public class ConditionSettings {
     /**
      * <p>Returning maximum wait time from field <code>waitConstraint</code>.</p>
      *
-     * @return a {@link org.awaitility.Duration} object.
+     * @return a {@link java.time.Duration} object.
      */
     public Duration getMaxWaitTime() {
         return waitConstraint.getMaxWaitTime();
@@ -85,7 +89,7 @@ public class ConditionSettings {
     /**
      * <p>Returning minimum wait time from field <code>waitConstraint</code>.</p>
      *
-     * @return a {@link org.awaitility.Duration} object.
+     * @return a {@link java.time.Duration} object.
      */
     public Duration getMinWaitTime() {
         return waitConstraint.getMinWaitTime();
@@ -94,7 +98,7 @@ public class ConditionSettings {
     /**
      * <p>Returning hold predicate wait time from field <code>waitConstraint</code>.</p>
      *
-     * @return a {@link org.awaitility.Duration} object.
+     * @return a {@link java.time.Duration} object.
      */
     public Duration getHoldPredicateTime() {
         return waitConstraint.getHoldPredicateTime();
@@ -103,7 +107,7 @@ public class ConditionSettings {
     /**
      * <p>Getter for the field <code>pollInterval</code>.</p>
      *
-     * @return a {@link org.awaitility.Duration} object.
+     * @return a {@link java.time.Duration} object.
      */
     public PollInterval getPollInterval() {
         return pollInterval;
@@ -112,7 +116,7 @@ public class ConditionSettings {
     /**
      * <p>Getter for the field <code>pollDelay</code>.</p>
      *
-     * @return a {@link org.awaitility.Duration} object.
+     * @return a {@link java.time.Duration} object.
      */
     public Duration getPollDelay() {
         return pollDelay;
@@ -164,5 +168,12 @@ public class ConditionSettings {
      */
     public FailFastCondition getFailFastCondition() {
         return this.failFastCondition;
+    }
+
+    /**
+     * @return The callback to call on timeout
+     */
+    public Optional<OnTimeoutCallback> getOnTimeoutCallback() {
+        return Optional.ofNullable(onTimeoutCallback);
     }
 }
