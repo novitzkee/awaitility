@@ -1,3 +1,9 @@
+## Fork
+This fork attempts to fix verfy old [issue-48](https://github.com/awaitility/awaitility/issues/48). Without this change only thing awaitilily can do is throw ConditionTimeoutException on timeout. This change allows to pass custom callback which is called when timeout happens. Data passed to callback allows client code to determine if timeout happend because condition was:
+* met too early
+* met too late
+* not held
+
 ![Awaitility](resources/Awaitility_logo_red_small.png) 
 
 [![Build Status](https://github.com/awaitility/awaitility/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/awaitility/awaitility/actions/workflows/ci.yml)
